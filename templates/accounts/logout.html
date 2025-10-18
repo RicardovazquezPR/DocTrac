@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Cerrar Sesión - DocTrac{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                <h3 class="mt-3">Sesión Cerrada</h3>
+                <p class="text-muted">Has cerrado sesión exitosamente del sistema DocTrac.</p>
+                <a href="{% url 'accounts:login' %}" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión Nuevamente
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

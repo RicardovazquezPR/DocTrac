@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Nuevo Documento - DocTrac{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>Subir Nuevo Documento
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="id_title" class="form-label">
+                                <i class="fas fa-heading me-1"></i>Título del Documento *
+                            </label>
+                            <input type="text" class="form-control" id="id_title" name="title" 
+                                   placeholder="Ej: Factura No. 12345, Contrato de Servicios, etc." required>
+                            <div class="form-text">Ingresa un título descriptivo para el documento</div>
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            <label for="id_file" class="form-label">
+                                <i class="fas fa-file-pdf me-1"></i>Archivo PDF *
+                            </label>
+                            <input type="file" class="form-control" id="id_file" name="file" 
+                                   accept=".pdf" required>
+                            <div class="form-text">Solo se permiten archivos PDF (máximo 10MB)</div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h6 class="text-muted mb-3">
+                        <i class="fas fa-tags me-2"></i>Categorización (Nuevo Orden: 👤→🏷️→📄→📅)
+                    </h6>
+                    
+                    <div class="row">
+                        <!-- 1. Entidad (PRIMERO) -->
+                        <div class="col-md-6 mb-3">
+                            <label for="id_entity" class="form-label">
+                                <i class="fas fa-building me-1"></i>🏢 Entidad
+                            </label>
+                            <select class="form-select" id="id_entity" name="entity">
+                                <option value="">Seleccionar entidad...</option>
+                                {% for entity in entities %}
+                                <option value="{{ entity.id }}">
+                                    {{ entity.name }} {% if entity.is_company %}(Empresa){% else %}(Entidad){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">🥇 Primer nivel de organización</small>
+                        </div>
+                        
+                        <!-- 2. Categoría -->
+                        <div class="col-md-6 mb-3">
+                            <label for="id_category" class="form-label">
+                                <i class="fas fa-folder me-1"></i>🏷️ Categoría
+                            </label>
+                            <select class="form-select" id="id_category" name="category">
+                                <option value="">Seleccionar categoría...</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">🥈 Segundo nivel de organización</small>
+                        </div>
+                        
+                        <!-- 3. Tipo de Documento -->
+                        <div class="col-md-6 mb-3">
+                            <label for="id_document_type" class="form-label">
+                                <i class="fas fa-file me-1"></i>📄 Tipo de Documento
+                            </label>
+                            <select class="form-select" id="id_document_type" name="document_type" disabled>
+                                <option value="">Primero selecciona categoría...</option>
+                            </select>
+                            <small class="text-muted">🥉 Tercer nivel de organización</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="id_document_date" class="form-label">
+                                <i class="fas fa-calendar me-1"></i>Fecha del Documento
+                            </label>
+                            <input type="date" class="form-control" id="id_document_date" name="document_date">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="id_payment_status" class="form-label">
+                                <i class="fas fa-money-bill me-1"></i>Estado de Pago
+                            </label>
+                            <select class="form-select" id="id_payment_status" name="payment_status">
+                                <option value="not_applicable" selected>No Aplica</option>
+                                <option value="paid">Pagado</option>
+                                <option value="pending">Pendiente</option>
+                                <option value="overdue">Vencido</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="id_assigned_users" class="form-label">
+                                <i class="fas fa-users me-1"></i>Asignar a Usuarios
+                            </label>
+                            <select class="form-select" id="id_assigned_users" name="assigned_users" multiple>
+                                {% for user in users %}
+                                <option value="{{ user.id }}">
+                                    {{ user.get_full_name|default:user.username }} - {{ user.get_role_display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Mantén Ctrl/Cmd presionado para seleccionar múltiples usuarios</div>
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            <label for="id_notes" class="form-label">
+                                <i class="fas fa-sticky-note me-1"></i>Notas
+                            </label>
+                            <textarea class="form-control" id="id_notes" name="notes" rows="3" 
+                                      placeholder="Observaciones, comentarios adicionales..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'documents:dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Guardar Documento
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Manejar cambio de categoría para cargar tipos de documento
+    $('#id_category').on('change', function() {
+        const categoryId = $(this).val();
+        const documentTypeSelect = $('#id_document_type');
+        
+        if (categoryId) {
+            $.get('/documents/api/document-types/', {category_id: categoryId}, function(data) {
+                documentTypeSelect.empty().append('<option value="">Seleccionar tipo...</option>');
+                
+                data.document_types.forEach(function(type) {
+                    documentTypeSelect.append(`<option value="${type.id}">${type.name}</option>`);
+                });
+                
+                documentTypeSelect.prop('disabled', false);
+            }).fail(function() {
+                documentTypeSelect.empty()
+                    .append('<option value="">Error al cargar tipos</option>')
+                    .prop('disabled', true);
+            });
+        } else {
+            documentTypeSelect.empty()
+                .append('<option value="">Primero selecciona categoría...</option>')
+                .prop('disabled', true);
+        }
+    });
+    
+    // Validación del archivo
+    $('#id_file').on('change', function() {
+        const file = this.files[0];
+        
+        if (file) {
+            // Verificar tipo de archivo
+            if (file.type !== 'application/pdf') {
+                alert('Solo se permiten archivos PDF');
+                $(this).val('');
+                return;
+            }
+            
+            // Verificar tamaño (10MB max)
+            const maxSize = 10 * 1024 * 1024; // 10MB en bytes
+            if (file.size > maxSize) {
+                alert('El archivo es demasiado grande. Máximo 10MB permitido.');
+                $(this).val('');
+                return;
+            }
+            
+            // Sugerir título basado en el nombre del archivo
+            const titleField = $('#id_title');
+            if (!titleField.val()) {
+                const fileName = file.name.replace('.pdf', '').replace(/_/g, ' ');
+                titleField.val(fileName);
+            }
+        }
+    });
+    
+    // Mejorar la experiencia del select múltiple
+    $('#id_assigned_users').attr('size', '4');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,356 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sincronizar WorkFolder - DocTrac{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sync-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .info-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-box {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .file-list {
+        background: #ffffff;
+        border: 2px solid #e9ecef;
+        border-radius: 5px;
+        padding: 1rem;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    .file-list .mb-1 {
+        color: #212529;
+        font-weight: 500;
+        background: #f8f9fa;
+        padding: 0.5rem;
+        border-radius: 4px;
+        margin-bottom: 0.5rem !important;
+        border-left: 3px solid #dc3545;
+    }
+    
+    .sync-btn {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        border: none;
+        padding: 12px 30px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 25px;
+        transition: all 0.3s ease;
+    }
+    
+    .sync-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+    }
+    
+    .sync-btn:disabled {
+        background: #6c757d;
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .info-card h6 {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+    }
+    
+    .info-card p, .info-card code {
+        color: #212529;
+        font-weight: 500;
+    }
+    
+    .info-card code {
+        background: #e9ecef;
+        color: #495057;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .info-card ul.list-unstyled li {
+        color: #212529;
+        font-weight: 500;
+        background: #ffffff;
+        padding: 0.75rem;
+        border-radius: 6px;
+        border-left: 4px solid #007bff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .info-card ul.list-unstyled li:nth-child(even) {
+        background: #f8f9fa;
+        border-left-color: #28a745;
+    }
+    
+    .info-card ul.list-unstyled li:last-child {
+        border-left-color: #ffc107;
+    }
+    
+    .info-card h5 {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">🔄 Sincronizar WorkFolder</h1>
+        <a href="{% url 'documents:administration_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+        </a>
+    </div>
+
+    <!-- Card Principal -->
+    <div class="sync-card">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h3 class="mb-3">
+                    <i class="fas fa-sync-alt"></i> Procesamiento Manual de Documentos
+                </h3>
+                <p class="mb-0">
+                    Esta herramienta te permite procesar manualmente los documentos PDF que se encuentran
+                    en la carpeta WorkFolder y que no han sido procesados automáticamente por el sistema.
+                </p>
+            </div>
+            <div class="col-md-4 text-center">
+                <button id="syncBtn" class="btn btn-light sync-btn" onclick="syncWorkFolder()">
+                    <i class="fas fa-sync-alt" id="syncIcon"></i>
+                    <span id="syncText">Sincronizar Ahora</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i> {{ error }}
+    </div>
+    {% else %}
+    
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-box">
+                <div class="stat-number text-warning">{{ pending_count }}</div>
+                <div class="stat-label">Documentos Pendientes</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-box">
+                <div class="stat-number text-success">{{ processed_count }}</div>
+                <div class="stat-label">Documentos Procesados</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stat-box">
+                <div class="stat-number text-info">
+                    <i class="fas fa-{% if folder_exists %}check-circle{% else %}exclamation-circle{% endif %}"></i>
+                </div>
+                <div class="stat-label">
+                    Carpeta: {% if folder_exists %}Activa{% else %}No Encontrada{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información de la carpeta -->
+    <div class="info-card">
+        <h5><i class="fas fa-folder"></i> Información de WorkFolder</h5>
+        <p><strong>Ruta:</strong> <code>{{ monitored_folder }}</code></p>
+        
+        {% if folder_exists %}
+            {% if pending_count > 0 %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Hay <strong>{{ pending_count }}</strong> documento{% if pending_count != 1 %}s{% endif %} PDF pendiente{% if pending_count != 1 %}s{% endif %} de procesar.
+                </div>
+                
+                {% if pending_files %}
+                <h6>Documentos pendientes:</h6>
+                <div class="file-list">
+                    {% for file in pending_files %}
+                        <div class="mb-1">
+                            <i class="fas fa-file-pdf text-danger"></i> {{ file }}
+                        </div>
+                    {% endfor %}
+                    {% if pending_count > 10 %}
+                        <div class="text-muted"><em>... y {{ pending_count|add:"-10" }} archivo{% if pending_count > 11 %}s{% endif %} más</em></div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    No hay documentos pendientes. Todos los PDFs han sido procesados.
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i>
+                La carpeta WorkFolder no existe o no es accesible.
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Información sobre el proceso -->
+    <div class="info-card">
+        <h5><i class="fas fa-info-circle"></i> ¿Cómo funciona la sincronización?</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <ul class="list-unstyled">
+                    <li class="mb-2"><i class="fas fa-search" style="color: #007bff; margin-right: 0.5rem;"></i> Busca archivos PDF en la carpeta WorkFolder</li>
+                    <li class="mb-2"><i class="fas fa-database" style="color: #28a745; margin-right: 0.5rem;"></i> Crea registros en la base de datos</li>
+                    <li class="mb-2"><i class="fas fa-copy" style="color: #17a2b8; margin-right: 0.5rem;"></i> Copia los archivos al sistema de medios</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <ul class="list-unstyled">
+                    <li class="mb-2"><i class="fas fa-archive" style="color: #fd7e14; margin-right: 0.5rem;"></i> Mueve los originales a la carpeta 'processed'</li>
+                    <li class="mb-2"><i class="fas fa-tags" style="color: #6c757d; margin-right: 0.5rem;"></i> Asigna categoría "Documentos Escaneados"</li>
+                    <li class="mb-2"><i class="fas fa-clock" style="color: #dc3545; margin-right: 0.5rem;"></i> Marca como estado "pendiente" para categorización</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+<!-- Modal de resultado -->
+<div class="modal fade" id="resultModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resultModalTitle">Resultado de Sincronización</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="resultModalBody">
+                <!-- Contenido dinámico -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" onclick="location.reload()">
+                    <i class="fas fa-sync-alt"></i> Actualizar Página
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function syncWorkFolder() {
+    const btn = document.getElementById('syncBtn');
+    const icon = document.getElementById('syncIcon');
+    const text = document.getElementById('syncText');
+    
+    // Deshabilitar botón y mostrar estado de carga
+    btn.disabled = true;
+    icon.className = 'fas fa-spinner fa-spin';
+    text.textContent = 'Sincronizando...';
+    
+    fetch('{% url "documents:admin_sync_workfolder" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const modal = new bootstrap.Modal(document.getElementById('resultModal'));
+        const modalTitle = document.getElementById('resultModalTitle');
+        const modalBody = document.getElementById('resultModalBody');
+        
+        if (data.success) {
+            modalTitle.textContent = '✅ Sincronización Exitosa';
+            modalBody.innerHTML = `
+                <div class="alert alert-success">
+                    <h6>Resultado:</h6>
+                    <ul class="mb-0">
+                        <li><strong>${data.processed}</strong> documento${data.processed !== 1 ? 's' : ''} procesado${data.processed !== 1 ? 's' : ''}</li>
+                        <li><strong>${data.pending}</strong> documento${data.pending !== 1 ? 's' : ''} pendiente${data.pending !== 1 ? 's' : ''}</li>
+                    </ul>
+                </div>
+                <p class="mb-0">${data.message}</p>
+            `;
+        } else {
+            modalTitle.textContent = '❌ Error en Sincronización';
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> ${data.error || 'Error desconocido'}
+                </div>
+            `;
+        }
+        
+        modal.show();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        const modal = new bootstrap.Modal(document.getElementById('resultModal'));
+        const modalTitle = document.getElementById('resultModalTitle');
+        const modalBody = document.getElementById('resultModalBody');
+        
+        modalTitle.textContent = '❌ Error de Comunicación';
+        modalBody.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>Error:</strong> No se pudo conectar con el servidor.
+            </div>
+        `;
+        
+        modal.show();
+    })
+    .finally(() => {
+        // Restaurar estado del botón
+        btn.disabled = false;
+        icon.className = 'fas fa-sync-alt';
+        text.textContent = 'Sincronizar Ahora';
+    });
+}
+</script>
+
+<!-- Token CSRF -->
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+{% endblock %}

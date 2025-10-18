@@ -1,0 +1,402 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Categoría - DocTrac{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 2rem;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .form-group label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control, .form-select {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #17a2b8;
+        box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+    }
+    
+    .btn-custom {
+        padding: 0.75rem 2rem;
+        border-radius: 25px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-save {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        color: white;
+    }
+    
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    }
+    
+    .btn-cancel {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        border: none;
+        color: white;
+    }
+    
+    .btn-cancel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
+    }
+    
+    .help-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .entity-selector {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        background: #f8f9fa;
+    }
+    
+    .entity-checkbox {
+        margin-bottom: 0.5rem;
+    }
+    
+    .applies-all-section {
+        background: #e7f3ff;
+        border: 1px solid #b8daff;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    .category-preview {
+        background: #f8f9fa;
+        border: 1px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 0.5rem;
+    }
+    
+    .folder-structure {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        background: #343a40;
+        color: #28a745;
+        padding: 0.75rem;
+        border-radius: 5px;
+        font-size: 0.85rem;
+        white-space: pre-line;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="form-container">
+                <div class="form-header">
+                    <h1 class="mb-0">
+                        {% if form.instance.pk %}
+                            <i class="fas fa-tag"></i> Editar Categoría
+                        {% else %}
+                            <i class="fas fa-plus-circle"></i> Nueva Categoría
+                        {% endif %}
+                    </h1>
+                    <p class="mb-0 mt-2 opacity-75">
+                        {% if form.instance.pk %}
+                            Modificar configuración de {{ form.instance.name }}
+                        {% else %}
+                            Agregar nueva categoría al sistema
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="post" id="categoryForm">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-8 mb-4">
+                            <div class="form-group">
+                                <label for="{{ form.name.id_for_label }}">
+                                    <i class="fas fa-tag text-primary me-2"></i>Nombre de la Categoría *
+                                </label>
+                                {{ form.name }}
+                                {% if form.name.help_text %}
+                                    <div class="help-text">{{ form.name.help_text }}</div>
+                                {% endif %}
+                                {% if form.name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="form-group">
+                                <label for="{{ form.is_active.id_for_label }}">
+                                    <i class="fas fa-toggle-on text-success me-2"></i>Estado
+                                </label>
+                                <div class="form-check mt-2">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        Categoría activa
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12 mb-4">
+                            <div class="applies-all-section">
+                                <div class="form-check">
+                                    {{ form.applies_to_all }}
+                                    <label class="form-check-label fw-bold" for="{{ form.applies_to_all.id_for_label }}">
+                                        <i class="fas fa-users text-info me-2"></i>Aplicar a todas las entidades
+                                    </label>
+                                </div>
+                                <small class="text-muted d-block mt-2">
+                                    Si está marcado, esta categoría creará subcarpetas para todas las entidades existentes y futuras.
+                                    Si no está marcado, deberá seleccionar entidades específicas abajo.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row" id="entitySelectorRow" style="display: none;">
+                        <div class="col-12">
+                            <label class="form-label">
+                                <i class="fas fa-user-check text-warning me-2"></i>Seleccionar Entidades Específicas
+                            </label>
+                            <div class="entity-selector">
+                                {% for entity in available_entities %}
+                                <div class="entity-checkbox">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="applicable_entities" 
+                                               value="{{ entity.pk }}" 
+                                               id="entity_{{ entity.pk }}"
+                                               {% if entity in form.instance.applicable_entities.all %}checked{% endif %}>
+                                        <label class="form-check-label" for="entity_{{ entity.pk }}">
+                                            <i class="fas fa-building me-2"></i>{{ entity.name }} 
+                                            <small class="text-muted">({{ entity.type_display }})</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="text-muted">
+                                    <i class="fas fa-info-circle me-2"></i>No hay entidades disponibles. 
+                                    <a href="{% url 'admin_create_entity' %}">Crear nueva entidad</a>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle me-2"></i>Información sobre Categorías</h6>
+                                <ul class="mb-0">
+                                    <li><strong>Aplicar a todas las entidades:</strong> La categoría creará subcarpetas para cada entidad</li>
+                                    <li><strong>Selección específica:</strong> Solo las personas seleccionadas tendrán subcarpetas de esta categoría</li>
+                                    <li><strong>Carpetas automáticas:</strong> Las subcarpetas se crean automáticamente cuando se guarda la categoría</li>
+                                    <li><strong>Nuevas personas:</strong> Si la categoría aplica a todas, automáticamente se incluyen nuevas personas</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row" id="previewSection" style="display: none;">
+                        <div class="col-12 mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-eye text-info me-2"></i>Vista Previa de Carpetas
+                            </label>
+                            <div class="category-preview">
+                                <div class="folder-structure" id="folderPreview">
+                                    <!-- Se actualiza dinámicamente con JavaScript -->
+                                </div>
+                                <small class="text-muted mt-2 d-block">
+                                    Estas carpetas se crearán o actualizarán al guardar la categoría
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12 d-flex justify-content-between">
+                            <a href="{% url 'admin_manage_categories' %}" class="btn btn-cancel btn-custom">
+                                <i class="fas fa-arrow-left me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-save btn-custom">
+                                <i class="fas fa-save me-2"></i>
+                                {% if form.instance.pk %}Actualizar{% else %}Crear{% endif %} Categoría
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('categoryForm');
+    const nameField = document.getElementById('{{ form.name.id_for_label }}');
+    const appliesToAllField = document.getElementById('{{ form.applies_to_all.id_for_label }}');
+    const entitySelectorRow = document.getElementById('entitySelectorRow');
+    const previewSection = document.getElementById('previewSection');
+    const folderPreview = document.getElementById('folderPreview');
+    
+    // Función para mostrar/ocultar selector de personas
+    function togglePersonSelector() {
+        if (appliesToAllField.checked) {
+            entitySelectorRow.style.display = 'none';
+            // Desmarcar todas las personas si aplica a todas
+            const entityCheckboxes = document.querySelectorAll('input[name="applicable_entities"]');
+            personCheckboxes.forEach(checkbox => checkbox.checked = false);
+        } else {
+            entitySelectorRow.style.display = 'block';
+        }
+        updatePreview();
+    }
+    
+    // Función para actualizar la vista previa
+    function updatePreview() {
+        const categoryName = nameField.value.trim();
+        if (!categoryName) {
+            previewSection.style.display = 'none';
+            return;
+        }
+        
+        const safeCategoryName = categoryName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+        let preview = '';
+        
+        if (appliesToAllField.checked) {
+            // Mostrar para todas las personas
+            preview = `📁 Main/
+{% for person in available_persons %}├── 📁 {{ person.name|title }}
+│   └── 📁 ${safeCategoryName}
+{% endfor %}`;
+        } else {
+            // Mostrar solo para personas seleccionadas
+            const selectedEntities = Array.from(document.querySelectorAll('input[name="applicable_entities"]:checked'))
+                .map(checkbox => {
+                    const label = document.querySelector(`label[for="${checkbox.id}"]`);
+                    return label.textContent.trim().split(' (')[0].replace('👤', '').trim();
+                });
+            
+            if (selectedPersons.length > 0) {
+                preview = '📁 Main/\n';
+                selectedPersons.forEach((personName, index) => {
+                    const isLast = index === selectedPersons.length - 1;
+                    const prefix = isLast ? '└──' : '├──';
+                    preview += `${prefix} 📁 ${personName}\n`;
+                    preview += `${isLast ? '    ' : '│   '}└── 📁 ${safeCategoryName}\n`;
+                });
+            } else {
+                preview = 'Seleccione al menos una persona para ver la vista previa';
+            }
+        }
+        
+        folderPreview.textContent = preview;
+        previewSection.style.display = 'block';
+    }
+    
+    // Eventos
+    appliesToAllField.addEventListener('change', togglePersonSelector);
+    nameField.addEventListener('input', updatePreview);
+    
+    // Eventos para checkboxes de personas
+    const entityCheckboxes = document.querySelectorAll('input[name="applicable_entities"]');
+    personCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updatePreview);
+    });
+    
+    // Validación del formulario
+    form.addEventListener('submit', function(e) {
+        const categoryName = nameField.value.trim();
+        if (!categoryName) {
+            e.preventDefault();
+            alert('Por favor, ingrese un nombre para la categoría');
+            nameField.focus();
+            return false;
+        }
+        
+        if (categoryName.length < 2) {
+            e.preventDefault();
+            alert('El nombre de la categoría debe tener al menos 2 caracteres');
+            nameField.focus();
+            return false;
+        }
+        
+        // Validar que si no aplica a todas, al menos una persona esté seleccionada
+        if (!appliesToAllField.checked) {
+            const selectedEntities = document.querySelectorAll('input[name="applicable_entities"]:checked');
+            if (selectedPersons.length === 0) {
+                e.preventDefault();
+                alert('Debe seleccionar al menos una entidad o marcar "Aplicar a todas las entidades"');
+                return false;
+            }
+        }
+        
+        // Confirmación antes de crear
+        const isEditing = nameField.getAttribute('data-editing') === 'true';
+        const actionText = isEditing ? 'actualizar' : 'crear';
+        const appliesToText = appliesToAllField.checked ? 'todas las personas' : 
+            `${document.querySelectorAll('input[name="applicable_entities"]:checked').length} entidad(es) seleccionada(s)`;
+        
+        if (!confirm(`¿Está seguro de ${actionText} la categoría "${categoryName}" para ${appliesToText}?`)) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // Mostrar indicador de carga
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
+        submitBtn.disabled = true;
+        
+        // Restaurar botón si hay error
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 5000);
+    });
+    
+    // Inicialización
+    togglePersonSelector();
+    updatePreview();
+});
+</script>
+{% endblock %}

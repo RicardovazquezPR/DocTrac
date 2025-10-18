@@ -1,0 +1,403 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Categorías - DocTrac{% endblock %}
+
+{% block extra_css %}
+<style>
+    .management-header {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .category-card {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .category-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    
+    .category-card.inactive {
+        opacity: 0.6;
+        border-color: #dc3545;
+    }
+    
+    .category-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    
+    .category-status {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 1rem;
+    }
+    
+    .status-active {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-inactive {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .application-info {
+        background: #f8f9fa;
+        border-left: 4px solid #17a2b8;
+        padding: 0.75rem;
+        margin: 0.75rem 0;
+        border-radius: 0 5px 5px 0;
+    }
+    
+    .person-list {
+        max-height: 120px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 0.5rem;
+        background: #f8f9fa;
+    }
+    
+    .person-tag {
+        display: inline-block;
+        background: #e9ecef;
+        color: #495057;
+        padding: 0.2rem 0.5rem;
+        margin: 0.1rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+    
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        border-radius: 20px;
+    }
+    
+    .stats-row {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #495057;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .search-box {
+        background: white;
+        border-radius: 25px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .search-box:focus {
+        border-color: #17a2b8;
+        box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="management-header">
+        <h1 class="mb-3">🏷️ Gestión de Categorías</h1>
+        <p class="mb-0 opacity-75">Administrar categorías y su aplicación a personas del sistema</p>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="stats-row">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.total_categories }}</div>
+                    <div class="stat-label">🏷️ Total Categorías</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.active_categories }}</div>
+                    <div class="stat-label">✅ Activas</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.global_categories }}</div>
+                    <div class="stat-label">🌐 Globales</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.specific_categories }}</div>
+                    <div class="stat-label">🎯 Específicas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones y Búsqueda -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <a href="{% url 'admin_create_category' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus-circle me-2"></i>Nueva Categoría
+            </a>
+            <a href="{% url 'administration_dashboard' %}" class="btn btn-outline-secondary btn-lg ms-2">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+        </div>
+        <div class="col-md-6">
+            <input type="text" class="form-control search-box" id="searchInput" 
+                   placeholder="🔍 Buscar categorías por nombre...">
+        </div>
+    </div>
+
+    <!-- Lista de Categorías -->
+    <div class="row" id="categoriesList">
+        {% for category in categories %}
+        <div class="col-md-6 col-lg-4 category-item" data-name="{{ category.name|lower }}">
+            <div class="category-card {% if not category.is_active %}inactive{% endif %}">
+                <div class="category-name">
+                    <i class="fas fa-tag me-2 text-info"></i>{{ category.name }}
+                </div>
+                
+                <div class="category-status {% if category.is_active %}status-active{% else %}status-inactive{% endif %}">
+                    {% if category.is_active %}
+                        ✅ Activa
+                    {% else %}
+                        ❌ Inactiva
+                    {% endif %}
+                </div>
+                
+                <div class="application-info">
+                    {% if category.applies_to_all %}
+                        <div class="mb-2">
+                            <i class="fas fa-users text-info me-2"></i>
+                            <strong>Aplica a todas las personas</strong>
+                        </div>
+                        <small style="color: #495057; font-weight: 500;">
+                            Se creará una subcarpeta para cada persona existente y futura
+                        </small>
+                    {% else %}
+                        <div class="mb-2">
+                            <i class="fas fa-user-check text-warning me-2"></i>
+                            <strong>Aplica a personas específicas ({{ category.applicable_persons.count }})</strong>
+                        </div>
+                        {% if category.applicable_persons.exists %}
+                            <div class="person-list">
+                                {% for person in category.applicable_persons.all %}
+                                    <span class="person-tag">{{ person.name }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <small style="color: #495057; font-weight: 500;">No hay personas asignadas</small>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                
+                <div class="action-buttons">
+                    <a href="{% url 'admin_edit_category' category.pk %}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-edit me-1"></i>Editar
+                    </a>
+                    
+                    <button class="btn btn-outline-info btn-sm" 
+                            data-category-id="{{ category.pk }}" 
+                            data-category-name="{{ category.name }}"
+                            onclick="rebuildCategoryFolders(this.getAttribute('data-category-id'), this.getAttribute('data-category-name'))">
+                        <i class="fas fa-sync-alt me-1"></i>Reconstruir
+                    </button>
+                    
+                    {% if category.is_active %}
+                    <button class="btn btn-outline-warning btn-sm" 
+                            data-category-id="{{ category.pk }}" 
+                            data-category-name="{{ category.name }}"
+                            onclick="toggleCategoryStatus(this.getAttribute('data-category-id'), this.getAttribute('data-category-name'), false)">
+                        <i class="fas fa-pause me-1"></i>Desactivar
+                    </button>
+                    {% else %}
+                    <button class="btn btn-outline-success btn-sm" 
+                            data-category-id="{{ category.pk }}" 
+                            data-category-name="{{ category.name }}"
+                            onclick="toggleCategoryStatus(this.getAttribute('data-category-id'), this.getAttribute('data-category-name'), true)">
+                        <i class="fas fa-play me-1"></i>Activar
+                    </button>
+                    {% endif %}
+                    
+                    <button class="btn btn-outline-danger btn-sm" 
+                            data-category-id="{{ category.pk }}" 
+                            data-category-name="{{ category.name }}"
+                            onclick="deleteCategory(this.getAttribute('data-category-id'), this.getAttribute('data-category-name'))">
+                        <i class="fas fa-trash me-1"></i>Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5 empty-state">
+                <i class="fas fa-tags" style="font-size: 4rem; color: #495057 !important;"></i>
+                <h3 class="mt-3">No hay categorías registradas</h3>
+                <p>Comience agregando una nueva categoría al sistema</p>
+                <a href="{% url 'admin_create_category' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus-circle me-2"></i>Crear Primera Categoría
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const categoryItems = document.querySelectorAll('.category-item');
+    
+    // Funcionalidad de búsqueda
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        
+        categoryItems.forEach(function(item) {
+            const categoryName = item.getAttribute('data-name');
+            if (categoryName.includes(searchTerm)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+    
+    // Animaciones de entrada
+    categoryItems.forEach(function(item, index) {
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(20px)';
+        
+        setTimeout(function() {
+            item.style.transition = 'all 0.5s ease';
+            item.style.opacity = '1';
+            item.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+
+// Función para reconstruir carpetas de categoría
+function rebuildCategoryFolders(categoryId, categoryName) {
+    if (confirm(`¿Reconstruir carpetas para la categoría "${categoryName}"?\n\nEsto creará las subcarpetas faltantes según la configuración actual.`)) {
+        fetch(`/admin/rebuild-category-folders/${categoryId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Carpetas reconstruidas exitosamente para "${categoryName}"`);
+            } else {
+                alert(`Error al reconstruir carpetas: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            alert('Error de conexión al reconstruir las carpetas');
+            console.error('Error:', error);
+        });
+    }
+}
+
+// Función para activar/desactivar categoría
+function toggleCategoryStatus(categoryId, categoryName, activate) {
+    const action = activate ? 'activar' : 'desactivar';
+    if (confirm(`¿Está seguro de ${action} la categoría "${categoryName}"?`)) {
+        fetch(`/admin/toggle-category-status/${categoryId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ activate: activate })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Categoría "${categoryName}" ${activate ? 'activada' : 'desactivada'} exitosamente`);
+                location.reload();
+            } else {
+                alert(`Error al ${action} la categoría: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            alert(`Error de conexión al ${action} la categoría`);
+            console.error('Error:', error);
+        });
+    }
+}
+
+// Función para eliminar categoría
+function deleteCategory(categoryId, categoryName) {
+    if (confirm(`¿Está seguro de eliminar la categoría "${categoryName}"?\n\nEsta acción NO eliminará las carpetas físicas, solo la removerá del sistema.`)) {
+        fetch(`/admin/delete-category/${categoryId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Categoría "${categoryName}" eliminada del sistema`);
+                location.reload();
+            } else {
+                alert(`Error al eliminar la categoría: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            alert('Error de conexión al eliminar la categoría');
+            console.error('Error:', error);
+        });
+    }
+}
+</script>
+{% endblock %}

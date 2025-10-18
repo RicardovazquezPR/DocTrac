@@ -1,0 +1,354 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Personas - DocTrac{% endblock %}
+
+{% block extra_css %}
+<style>
+    .management-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .entity-card {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .entity-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    
+    .entity-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    
+    .entity-type {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+    
+    .entity-type.physical {
+        background: #e7f3ff;
+        color: #0066cc;
+    }
+    
+    .entity-type.moral {
+        background: #f0f9ff;
+        color: #0891b2;
+    }
+    
+    .folder-info {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.85rem;
+        background: #e8f5e8;
+        color: #155724;
+        font-weight: 500;
+        padding: 0.75rem;
+        border-radius: 5px;
+        border-left: 4px solid #28a745;
+        margin: 0.5rem 0;
+        word-break: break-all;
+    }
+    
+    .no-folder {
+        color: #dc3545;
+        font-style: italic;
+        background: #f8d7da;
+        padding: 0.5rem;
+        border-radius: 5px;
+        border-left: 3px solid #dc3545;
+    }
+    
+    .folder-info .text-dark {
+        color: #2d3748 !important;
+        font-weight: 600;
+    }
+    
+    .folder-info strong {
+        color: #155724;
+        font-size: 0.9rem;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        border-radius: 20px;
+    }
+    
+    .stats-row {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #495057;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .search-box {
+        background: white;
+        border-radius: 25px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .search-box:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="management-header">
+        <h1 class="mb-3">🏢 Gestión de Entidades</h1>
+        <p class="mb-0 opacity-75">Administrar entidades del sistema de documentos</p>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="stats-row">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.total_entities }}</div>
+                    <div class="stat-label">🏢 Total Entidades</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.physical_entities }}</div>
+                    <div class="stat-label">🧑 Entidades Físicas</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.moral_entities }}</div>
+                    <div class="stat-label">🏢 Entidades Morales</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.with_folders }}</div>
+                    <div class="stat-label">📁 Con Carpetas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones y Búsqueda -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <a href="{% url 'admin_create_entity' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus me-2"></i>Nueva Entidad
+            </a>
+            <a href="{% url 'administration_dashboard' %}" class="btn btn-outline-secondary btn-lg ms-2">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+        </div>
+        <div class="col-md-6">
+            <input type="text" class="form-control search-box" id="searchInput" 
+                   placeholder="🔍 Buscar entidades por nombre...">
+        </div>
+    </div>
+
+    <!-- Lista de Personas -->
+    <div class="row" id="personsList">
+        {% for entity in entities %}
+        <div class="col-md-6 col-lg-4 entity-item" data-name="{{ entity.name|lower }}">
+            <div class="entity-card">
+                <div class="entity-name">
+                    <i class="fas fa-building me-2 text-primary"></i>{{ entity.name }}
+                </div>
+                
+                <div class="entity-type {% if entity.is_company %}moral{% else %}physical{% endif %}">
+                    {% if entity.is_company %}
+                        🏢 Entidad Moral
+                    {% else %}
+                        🧑 Entidad Física
+                    {% endif %}
+                </div>
+                
+                {% if entity.folder_path %}
+                    <div class="folder-info">
+                        <i class="fas fa-folder me-2" style="color: #28a745;"></i>
+                        <strong>📁 Ruta:</strong><br>
+                        <span class="text-dark">{{ entity.folder_path }}</span>
+                    </div>
+                    <small class="text-success">
+                        <i class="fas fa-check-circle me-1"></i>
+                        {% if entity.auto_create_folder %}Carpeta automática{% else %}Carpeta manual{% endif %}
+                    </small>
+                {% else %}
+                    <div class="no-folder">
+                        <i class="fas fa-folder-open text-warning me-1"></i>
+                        Sin carpeta asignada
+                    </div>
+                {% endif %}
+                
+                <hr class="my-2">
+                
+                <div class="action-buttons">
+                    <a href="{% url 'admin_edit_entity' entity.pk %}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-edit me-1"></i>Editar
+                    </a>
+                    
+                    {% if not entity.folder_path %}
+                    <button class="btn btn-outline-success btn-sm" 
+                            data-entity-id="{{ entity.pk }}" 
+                            data-entity-name="{{ entity.name }}"
+                            onclick="createFolder(this.getAttribute('data-entity-id'), this.getAttribute('data-entity-name'))">
+                        <i class="fas fa-folder-plus me-1"></i>Crear Carpeta
+                    </button>
+                    {% endif %}
+                    
+                    <button class="btn btn-outline-danger btn-sm" 
+                            data-entity-id="{{ entity.pk }}" 
+                            data-entity-name="{{ entity.name }}"
+                            onclick="deleteEntity(this.getAttribute('data-entity-id'), this.getAttribute('data-entity-name'))">
+                        <i class="fas fa-trash me-1"></i>Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5 empty-state">
+                <i class="fas fa-building text-muted" style="font-size: 4rem; color: #495057 !important;"></i>
+                <h3 class="mt-3">No hay entidades registradas</h3>
+                <p>Comience agregando una nueva entidad al sistema</p>
+                <a href="{% url 'admin_create_entity' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus me-2"></i>Crear Primera Entidad
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const entityItems = document.querySelectorAll('.entity-item');
+    
+    // Funcionalidad de búsqueda
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        
+        entityItems.forEach(function(item) {
+            const entityName = item.getAttribute('data-name');
+            if (entityName.includes(searchTerm)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+    
+    // Animaciones de entrada
+    entityItems.forEach(function(item, index) {
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(20px)';
+        
+        setTimeout(function() {
+            item.style.transition = 'all 0.5s ease';
+            item.style.opacity = '1';
+            item.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+
+// Función para crear carpeta
+function createFolder(entityId, entityName) {
+    if (confirm(`¿Crear carpeta para "${entityName}"?`)) {
+        fetch(`/admin/create-folder/${entityId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Carpeta creada exitosamente para "${entityName}"`);
+                location.reload();
+            } else {
+                alert(`Error al crear carpeta: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            alert('Error de conexión al crear la carpeta');
+            console.error('Error:', error);
+        });
+    }
+}
+
+// Función para eliminar entidad
+function deleteEntity(entityId, entityName) {
+    if (confirm(`¿Está seguro de eliminar a "${entityName}"?\n\nEsta acción NO eliminará la carpeta física, solo la removerá del sistema.`)) {
+        fetch(`/admin/delete-entity/${entityId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`"${entityName}" ha sido eliminado del sistema`);
+                location.reload();
+            } else {
+                alert(`Error al eliminar: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            alert('Error de conexión al eliminar la entidad');
+            console.error('Error:', error);
+        });
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lista de Documentos - DocTrac{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-list me-2"></i>Lista de Documentos</h2>
+    <a href="{% url 'documents:document_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>Nuevo Documento
+    </a>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Buscar</label>
+                <input type="text" class="form-control" name="search" 
+                       value="{{ request.GET.search }}" 
+                       placeholder="Título, entidad, notas...">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Estado</label>
+                <select class="form-select" name="status">
+                    <option value="">Todos</option>
+                    <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pendiente</option>
+                    <option value="scanned" {% if request.GET.status == 'scanned' %}selected{% endif %}>Escaneado</option>
+                    <option value="digitized" {% if request.GET.status == 'digitized' %}selected{% endif %}>Digitalizado</option>
+                    <option value="categorized" {% if request.GET.status == 'categorized' %}selected{% endif %}>Categorizado</option>
+                    <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>Aprobado</option>
+                    <option value="archived" {% if request.GET.status == 'archived' %}selected{% endif %}>Archivado</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Categoría</label>
+                <select class="form-select" name="category">
+                    <option value="">Todas</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if request.GET.category == category.id|slugify %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-search me-1"></i>Filtrar
+                </button>
+                <a href="{% url 'documents:document_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i>Limpiar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Lista de documentos -->
+<div class="row">
+    {% for document in documents %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <small class="text-muted">
+                    <i class="fas fa-calendar me-1"></i>
+                    {{ document.created_at|date:"d/m/Y H:i" }}
+                </small>
+                <span class="badge bg-{% if document.status == 'approved' %}success{% elif document.status == 'pending' %}warning{% else %}info{% endif %}">
+                    {{ document.get_status_display }}
+                </span>
+            </div>
+            <div class="card-body">
+                <h6 class="card-title">{{ document.title|truncatechars:40 }}</h6>
+                
+                {% if document.person %}
+                <p class="card-text">
+                    <i class="fas fa-user me-1 text-muted"></i>
+                    {{ document.person.name }}
+                    {% if document.person.is_company %}<small class="text-muted">(Empresa)</small>{% endif %}
+                </p>
+                {% endif %}
+                
+                {% if document.category %}
+                <p class="card-text">
+                    <i class="fas fa-folder me-1 text-muted"></i>
+                    {{ document.category.name }}
+                    {% if document.document_type %}
+                        <br><small class="text-muted ms-3">{{ document.document_type.name }}</small>
+                    {% endif %}
+                </p>
+                {% endif %}
+                
+                {% if document.document_date %}
+                <p class="card-text">
+                    <i class="fas fa-calendar-alt me-1 text-muted"></i>
+                    <small>{{ document.document_date|date:"d/m/Y" }}</small>
+                </p>
+                {% endif %}
+                
+                {% if document.payment_status != 'not_applicable' %}
+                <p class="card-text">
+                    <i class="fas fa-money-bill me-1 text-muted"></i>
+                    <span class="badge bg-{% if document.payment_status == 'paid' %}success{% elif document.payment_status == 'overdue' %}danger{% else %}warning{% endif %}">
+                        {{ document.get_payment_status_display }}
+                    </span>
+                </p>
+                {% endif %}
+                
+                {% if document.file_size %}
+                <small class="text-muted">
+                    <i class="fas fa-file-pdf me-1"></i>
+                    {{ document.file_size }} MB
+                </small>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <div class="btn-group w-100" role="group">
+                    <a href="{% url 'documents:document_detail' document.pk %}" 
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye me-1"></i>Ver
+                    </a>
+                    <a href="{% url 'documents:serve_document' document.pk %}" 
+                       class="btn btn-sm btn-outline-info" target="_blank">
+                        <i class="fas fa-file-pdf me-1"></i>PDF
+                    </a>
+                    {% if user.is_manager %}
+                    <a href="#" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-edit me-1"></i>Editar
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                <h4>No se encontraron documentos</h4>
+                <p class="text-muted">No hay documentos que coincidan con los filtros aplicados.</p>
+                <a href="{% url 'documents:document_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Subir Primer Documento
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Paginación -->
+{% if is_paginated %}
+<nav aria-label="Navegación de páginas">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">Primera</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">Anterior</a>
+        </li>
+        {% endif %}
+        
+        <li class="page-item active">
+            <span class="page-link">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">Siguiente</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">Última</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

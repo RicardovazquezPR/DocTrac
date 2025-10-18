@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ document.title }} - DocTrac{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'documents:dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'documents:document_list' %}">Documentos</a></li>
+                <li class="breadcrumb-item active">{{ document.title|truncatechars:30 }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Información del Documento -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Información</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="card-title">{{ document.title }}</h6>
+                
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>Estado:</strong></td>
+                        <td>
+                            <span class="badge bg-{% if document.status == 'approved' %}success{% elif document.status == 'pending' %}warning{% else %}info{% endif %}">
+                                {{ document.get_status_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% if document.category %}
+                    <tr>
+                        <td><strong>Categoría:</strong></td>
+                        <td>{{ document.category.name }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if document.document_type %}
+                    <tr>
+                        <td><strong>Tipo:</strong></td>
+                        <td>{{ document.document_type.name }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if document.entity %}
+                    <tr>
+                        <td><strong>Entidad:</strong></td>
+                        <td>
+                            {{ document.entity.name }}
+                            {% if document.entity.is_company %}<small class="text-muted">(Empresa)</small>{% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% if document.document_date %}
+                    <tr>
+                        <td><strong>Fecha Documento:</strong></td>
+                        <td>{{ document.document_date|date:"d/m/Y" }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if document.due_date %}
+                    <tr>
+                        <td><strong>Fecha Vencimiento:</strong></td>
+                        <td>{{ document.due_date|date:"d/m/Y" }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if document.payment_status != 'not_applicable' %}
+                    <tr>
+                        <td><strong>Estado Pago:</strong></td>
+                        <td>
+                            <span class="badge bg-{% if document.payment_status == 'paid' %}success{% elif document.payment_status == 'overdue' %}danger{% else %}warning{% endif %}">
+                                {{ document.get_payment_status_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td><strong>Creado:</strong></td>
+                        <td>{{ document.created_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% if document.created_by %}
+                    <tr>
+                        <td><strong>Creado por:</strong></td>
+                        <td>{{ document.created_by.get_full_name|default:document.created_by.username }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td><strong>Actualizado:</strong></td>
+                        <td>{{ document.updated_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% if document.file_size %}
+                    <tr>
+                        <td><strong>Tamaño:</strong></td>
+                        <td>{{ document.file_size }} MB</td>
+                    </tr>
+                    {% endif %}
+                </table>
+                
+                {% if document.notes %}
+                <div class="mt-3">
+                    <strong>Notas:</strong>
+                    <p class="text-muted mt-1">{{ document.notes }}</p>
+                </div>
+                {% endif %}
+                
+                {% if document.tags %}
+                <div class="mt-3">
+                    <strong>Etiquetas:</strong>
+                    <div class="mt-1">
+                        <span class="badge bg-secondary">{{ document.tags }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="mt-3">
+                    <strong>Nombre Estructurado:</strong>
+                    <div class="bg-light p-2 mt-1 rounded">
+                        <code>{{ document.get_structured_name }}</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Usuarios Asignados -->
+        {% if document.assigned_users.all %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-users me-2"></i>Usuarios Asignados</h6>
+            </div>
+            <div class="card-body">
+                {% for user in document.assigned_users.all %}
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-user me-2"></i>
+                    <span>{{ user.get_full_name|default:user.username }}</span>
+                    <span class="badge bg-light text-dark ms-2">{{ user.get_role_display }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Historial -->
+        {% if history %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-history me-2"></i>Historial de Cambios</h6>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    {% for entry in history %}
+                    <div class="timeline-item mb-3">
+                        <div class="d-flex">
+                            <div class="timeline-marker me-3">
+                                <i class="fas fa-circle text-{% if entry.new_status == 'approved' %}success{% elif entry.new_status == 'pending' %}warning{% else %}info{% endif %}"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between">
+                                    <strong>{{ entry.get_new_status_display }}</strong>
+                                    <small class="text-muted">{{ entry.created_at|date:"d/m H:i" }}</small>
+                                </div>
+                                {% if entry.previous_status %}
+                                <small class="text-muted">
+                                    Desde: {{ entry.get_previous_status_display }}
+                                </small>
+                                {% endif %}
+                                {% if entry.changed_by %}
+                                <div>
+                                    <small class="text-info">
+                                        <i class="fas fa-user me-1"></i>
+                                        {{ entry.changed_by.get_full_name|default:entry.changed_by.username }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                                {% if entry.change_reason %}
+                                <div class="mt-1">
+                                    <small class="text-muted">{{ entry.change_reason }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Vista Previa del PDF -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-file-pdf me-2"></i>Vista Previa</h5>
+                <div>
+                    <a href="{% url 'documents:serve_document' document.pk %}" 
+                       class="btn btn-sm btn-outline-primary" target="_blank">
+                        <i class="fas fa-external-link-alt me-1"></i>Abrir en Nueva Pestaña
+                    </a>
+                    <a href="{% url 'documents:serve_document' document.pk %}?download=1" 
+                       class="btn btn-sm btn-outline-success">
+                        <i class="fas fa-download me-1"></i>Descargar
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <iframe src="{% url 'documents:serve_document' document.pk %}" 
+                        width="100%" height="800px" 
+                        style="border: none;">
+                    Tu navegador no soporta la vista previa de PDF.
+                    <a href="{% url 'documents:serve_document' document.pk %}">Descargar PDF</a>
+                </iframe>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline-marker {
+    width: 20px;
+    text-align: center;
+}
+
+.timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 25px;
+    height: calc(100% - 10px);
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+}
+</style>
+{% endblock %}

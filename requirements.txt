@@ -1,0 +1,6 @@
+asgiref==3.10.0
+Django==5.0.8
+pillow==10.4.0
+python-magic==0.4.27
+reportlab==4.0.4
+sqlparse==0.5.3

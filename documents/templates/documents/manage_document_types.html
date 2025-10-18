@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Tipos de Documentos - DocTrac{% endblock %}
+
+{% block extra_css %}
+<style>
+    .header-section {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-left: 4px solid #28a745;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #28a745;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .document-types-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .document-type-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        border-left: 4px solid #28a745;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .document-type-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 25px rgba(0,0,0,0.15);
+    }
+    
+    .document-type-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+    
+    .document-type-name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #495057;
+        margin: 0;
+    }
+    
+    .document-type-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .status-active {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-inactive {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .document-type-category {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+    
+    .document-type-description {
+        color: #6c757d;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-bottom: 1rem;
+    }
+    
+    .document-type-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-action {
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-edit {
+        background: #ffc107;
+        color: #212529;
+        border: none;
+    }
+    
+    .btn-edit:hover {
+        background: #e0a800;
+        transform: translateY(-2px);
+    }
+    
+    .btn-delete {
+        background: #dc3545;
+        color: white;
+        border: none;
+    }
+    
+    .btn-delete:hover {
+        background: #c82333;
+        transform: translateY(-2px);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="header-section">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-2">
+                    <i class="fas fa-file-alt me-3"></i>Gestión de Tipos de Documentos
+                </h1>
+                <p class="mb-0 opacity-75">
+                    Administra los tipos de documentos organizados por categorías
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{% url 'admin_create_document_type' %}" class="btn btn-light btn-lg">
+                    <i class="fas fa-plus me-2"></i>Nuevo Tipo de Documento
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.total_document_types }}</div>
+            <div class="stat-label">📄 Total Tipos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.active_document_types }}</div>
+            <div class="stat-label">✅ Activos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.inactive_document_types }}</div>
+            <div class="stat-label">❌ Inactivos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.categories_with_types }}</div>
+            <div class="stat-label">🏷️ Categorías con Tipos</div>
+        </div>
+    </div>
+
+    <!-- Acciones rápidas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{% url 'documents:administration_dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Volver al Panel
+                        </a>
+                        <a href="{% url 'admin_manage_categories' %}" class="btn btn-outline-info">
+                            <i class="fas fa-tags me-2"></i>Gestionar Categorías
+                        </a>
+                        <a href="{% url 'admin_manage_entities' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-users me-2"></i>Gestionar Entidades
+                        </a>
+                        <button type="button" class="btn btn-outline-secondary" onclick="location.reload()">
+                            <i class="fas fa-sync-alt me-2"></i>Actualizar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de tipos de documentos -->
+    {% if document_types %}
+        <div class="document-types-grid">
+            {% for doc_type in document_types %}
+            <div class="document-type-card">
+                <div class="document-type-header">
+                    <h3 class="document-type-name">
+                        <i class="fas fa-file-alt text-success me-2"></i>
+                        {{ doc_type.name }}
+                    </h3>
+                    <span class="document-type-status {% if doc_type.is_active %}status-active{% else %}status-inactive{% endif %}">
+                        {% if doc_type.is_active %}✅ Activo{% else %}❌ Inactivo{% endif %}
+                    </span>
+                </div>
+                
+                <div class="document-type-category">
+                    <i class="fas fa-tag text-info me-1"></i>
+                    <strong>Categoría:</strong> {{ doc_type.category.name }}
+                </div>
+                
+                {% if doc_type.description %}
+                <div class="document-type-description">
+                    <i class="fas fa-align-left text-muted me-1"></i>
+                    {{ doc_type.description }}
+                </div>
+                {% endif %}
+                
+                <div class="document-type-actions">
+                    <a href="{% url 'admin_edit_document_type' doc_type.id %}" class="btn-action btn-edit">
+                        <i class="fas fa-edit me-1"></i>Editar
+                    </a>
+                    <button type="button" class="btn-action btn-delete" 
+                            data-doc-id="{{ doc_type.id }}" 
+                            data-doc-name="{{ doc_type.name|escapejs }}">
+                        <i class="fas fa-trash me-1"></i>Eliminar
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📄</div>
+            <h3>No hay tipos de documentos creados</h3>
+            <p>Comienza creando el primer tipo de documento para organizar mejor tus documentos.</p>
+            <a href="{% url 'admin_create_document_type' %}" class="btn btn-success btn-lg">
+                <i class="fas fa-plus me-2"></i>Crear Primer Tipo de Documento
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Modal de confirmación para eliminar -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea eliminar el tipo de documento <strong id="deleteDocTypeName"></strong>?</p>
+                <p class="text-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Esta acción no se puede deshacer.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">
+                    <i class="fas fa-trash me-2"></i>Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/manage_document_types.js"></script>
+{% endblock %}
