@@ -419,7 +419,7 @@ class Document(models.Model):
             return 0
     
     def get_structured_name(self):
-        """Genera un nombre estructurado basado en la categorización: Entidad_Categoría_TipoDocumento_Fecha"""
+        """Genera un nombre estructurado usando códigos cortos: Entidad_Categoría_TipoDocumento_Fecha"""
         parts = []
         
         # 1. Entidad (usando el valor corto)
@@ -453,6 +453,36 @@ class Document(models.Model):
                     parts.append(str(self.document_date).replace('-', ''))
         
         return '_'.join(parts) if parts else self.title
+    
+    def get_display_name(self):
+        """Genera un nombre legible con los nombres completos para mostrar en el UI"""
+        parts = []
+        
+        # 1. Entidad (nombre completo)
+        if self.entity:
+            parts.append(self.entity.name)
+        
+        # 2. Categoría (nombre completo)
+        if self.category:
+            parts.append(self.category.name)
+        
+        # 3. Tipo de Documento (nombre completo)
+        if self.document_type:
+            parts.append(self.document_type.name)
+        
+        # 4. Fecha (formato legible)
+        if self.document_date:
+            if hasattr(self.document_date, 'strftime'):
+                parts.append(self.document_date.strftime('%d/%m/%Y'))
+            elif isinstance(self.document_date, str):
+                try:
+                    from datetime import datetime
+                    parsed_date = datetime.strptime(self.document_date, '%Y-%m-%d')
+                    parts.append(parsed_date.strftime('%d/%m/%Y'))
+                except ValueError:
+                    parts.append(str(self.document_date))
+        
+        return ' - '.join(parts) if parts else self.title
 
 class DocumentHistory(models.Model):
     """Historial de cambios de estado de documentos"""

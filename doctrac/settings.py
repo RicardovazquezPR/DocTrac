@@ -122,11 +122,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Media files (PDF uploads)
 MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = '/Users/ricardovazquez/Documents/Main'
 
 # Language and timezone settings
 LANGUAGE_CODE = 'es-mx'
-TIME_ZONE = 'America/Mexico_City'
+TIME_ZONE = 'America/Puerto_Rico'
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
@@ -143,7 +143,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configuración de carpetas de monitoreo para documentos escaneados
 MONITORED_FOLDER = os.path.expanduser('~/Documents/Main/WorkFolder')
-MAIN_FOLDER = os.path.expanduser('~/Documents/Main')
+MAIN_FOLDER = MEDIA_ROOT  # Ahora Main es el MEDIA_ROOT
 
 # Crear las carpetas si no existen
 os.makedirs(MONITORED_FOLDER, exist_ok=True)
@@ -166,3 +166,8 @@ USAGE_CONFIG = {
         'show_companies': True,
     }
 }
+
+# Celery settings
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'

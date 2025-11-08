@@ -331,8 +331,8 @@ def sync_workfolder(request):
             return JsonResponse({
                 'success': True,
                 'message': 'Sincronización completada',
-                'processed': processed_count,
-                'pending': remaining_count
+                'processed_count': processed_count,
+                'pending_count': remaining_count
             })
             
         except Exception as e:

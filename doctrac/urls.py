@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
     path('documents/', include('documents.urls')),
+    # path('documents/admin/', admin_views.document_admin, name='document_admin'),
     # Rutas de administración del sistema
     path('admin-dashboard/', admin_views.administration_dashboard, name='administration_dashboard'),
     path('admin-dashboard/entities/', admin_views.manage_persons, name='admin_manage_entities'),

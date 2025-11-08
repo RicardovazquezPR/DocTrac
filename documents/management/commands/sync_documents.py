@@ -80,7 +80,26 @@ class Command(BaseCommand):
                 continue
             
             try:
-                # Crear el documento en la base de datos
+                # Crear carpetas necesarias
+                processed_folder = monitored_folder / 'processed'
+                processed_folder.mkdir(exist_ok=True)
+                
+                # La carpeta Pending (con mayúscula) dentro de Main (que es MEDIA_ROOT)
+                pending_folder = Path(settings.MEDIA_ROOT) / 'Pending'
+                pending_folder.mkdir(parents=True, exist_ok=True)
+                
+                # Generar timestamp único
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                
+                # Mover archivo original a 'processed'
+                processed_file = processed_folder / pdf_file.name
+                shutil.move(pdf_file, processed_file)
+                
+                # Crear copia en 'Pending'
+                pending_file = pending_folder / f"{timestamp}_{pdf_file.name}"
+                shutil.copy2(processed_file, pending_file)
+                
+                # Crear el documento en la base de datos apuntando al archivo en 'Pending'
                 document = Document.objects.create(
                     title=pdf_file.stem,  # Nombre sin extensión
                     notes=f'Documento escaneado importado automáticamente el {datetime.now().strftime("%Y-%m-%d %H:%M")}',
@@ -91,38 +110,22 @@ class Command(BaseCommand):
                     status='pending'
                 )
                 
-                # Copiar el archivo a la carpeta de media de Django
-                media_path = Path(settings.MEDIA_ROOT) / 'documents'
-                media_path.mkdir(parents=True, exist_ok=True)
-                
-                # Generar nombre único para evitar conflictos
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                new_filename = f"{document.id}_{timestamp}_{pdf_file.name}"
-                destination = media_path / new_filename
-                
-                # Copiar el archivo
-                shutil.copy2(pdf_file, destination)
-                
-                # Actualizar el campo file del documento
-                document.file = f'documents/{new_filename}'
+                # Actualizar el campo file del documento con la ruta relativa
+                relative_path = pending_file.relative_to(settings.MEDIA_ROOT)
+                document.file = str(relative_path)
                 document.save()
                 
                 self.stdout.write(
                     self.style.SUCCESS(f'✅ Procesado: {pdf_file.name} -> ID: {document.id}')
                 )
+                self.stdout.write(
+                    self.style.SUCCESS(f'📁 Original en: {processed_file}')
+                )
+                self.stdout.write(
+                    self.style.SUCCESS(f'📋 Copia en: {pending_file}')
+                )
                 
                 processed_count += 1
-                
-                # Opcional: Mover el archivo original a una carpeta de procesados
-                processed_folder = monitored_folder / 'processed'
-                processed_folder.mkdir(exist_ok=True)
-                
-                processed_file = processed_folder / f"{timestamp}_{pdf_file.name}"
-                shutil.move(pdf_file, processed_file)
-                
-                self.stdout.write(
-                    self.style.SUCCESS(f'📁 Movido a procesados: {processed_file.name}')
-                )
                 
             except Exception as e:
                 self.stdout.write(

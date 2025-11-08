@@ -274,6 +274,14 @@ $(document).ready(function() {
     function initDashboard() {
         let currentDocumentId = null;
         
+        // Auto-seleccionar el primer documento al cargar la página
+        const firstDocument = $('.document-item').first();
+        if (firstDocument.length) {
+            setTimeout(() => {
+                firstDocument.click();
+            }, 300);
+        }
+        
         // Manejar selección de documentos
         $(document).on('click', '.document-item', function() {
             const documentId = $(this).data('document-id');

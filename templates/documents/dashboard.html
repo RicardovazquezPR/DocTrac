@@ -80,11 +80,14 @@
     <!-- Columna Izquierda: Lista de Documentos Pendientes (25%) -->
     <div class="col-md-3">
         <div class="card h-100">
-            <div class="card-header bg-warning text-dark">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">
                     <i class="fas fa-clock me-2"></i>Documentos Pendientes
                     <span class="badge bg-dark ms-2">{{ pending_count }}</span>
                 </h6>
+                <button class="btn btn-sm btn-dark" id="syncWorkfolderBtn" title="Sincronizar carpeta de trabajo">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
             </div>
             <div class="card-body p-0">
                 <div class="document-list">
@@ -188,7 +191,7 @@
                             <select class="form-select form-select-sm" id="entity" name="entity_id">
                                 <option value="">Seleccionar entidad...</option>
                                 {% for entity in entities %}
-                                <option value="{{ entity.id }}">
+                                <option value="{{ entity.id }}" data-code="{{ entity.value }}">
                                     {{ entity.name }} {% if entity.is_company %}(Empresa){% else %}(Entidad){% endif %}
                                 </option>
                                 {% endfor %}
@@ -203,7 +206,7 @@
                             <select class="form-select form-select-sm" id="category" name="category_id">
                                 <option value="">Seleccionar categoría...</option>
                                 {% for category in categories %}
-                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                <option value="{{ category.id }}" data-code="{{ category.value }}">{{ category.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -379,7 +382,7 @@ $(document).ready(function() {
             }
             
             if (data.person_id) {
-                $('#person').val(data.person_id);
+                $('#entity').val(data.person_id);
             }
             
             if (data.document_date) {
@@ -409,7 +412,7 @@ $(document).ready(function() {
                 select.empty().append('<option value="">Seleccionar tipo...</option>');
                 
                 data.document_types.forEach(function(type) {
-                    select.append(`<option value="${type.id}">${type.name}</option>`);
+                    select.append(`<option value="${type.id}" data-code="${type.value}">${type.name}</option>`);
                 });
                 
                 select.prop('disabled', false);
@@ -424,27 +427,28 @@ $(document).ready(function() {
     });
     
     // Actualizar nombre estructurado cuando cambien los campos
-    $('#document-type, #person, #document-date').on('change', updateStructuredName);
+    $('#document-type, #entity, #category, #document-date').on('change', updateStructuredName);
     
     function updateStructuredName() {
         const date = $('#document-date').val();
-        const personText = $('#person option:selected').text();
-        const typeText = $('#document-type option:selected').text();
-        const categoryText = $('#category option:selected').text();
+        const entityCode = $('#entity option:selected').data('code');
+        const categoryCode = $('#category option:selected').data('code');
+        const typeCode = $('#document-type option:selected').data('code');
         
         let parts = [];
         
+        // Formato: ENTITY_CATEGORY_TYPE_DATE
+        if (entityCode) {
+            parts.push(entityCode);
+        }
+        if (categoryCode) {
+            parts.push(categoryCode);
+        }
+        if (typeCode) {
+            parts.push(typeCode);
+        }
         if (date) {
             parts.push(date.replace(/-/g, ''));
-        }
-        if (personText && personText !== 'Seleccionar...') {
-            parts.push(personText.replace(/\s+/g, '_').split('(')[0].trim());
-        }
-        if (typeText && typeText !== 'Seleccionar tipo...') {
-            parts.push(typeText.replace(/\s+/g, '_'));
-        }
-        if (categoryText && categoryText !== 'Seleccionar categoría...') {
-            parts.push(categoryText.replace(/\s+/g, '_'));
         }
         
         const structuredName = parts.length > 0 ? parts.join('_') : 'Documento_sin_categorizar';
@@ -470,7 +474,7 @@ $(document).ready(function() {
         const formData = {
             category_id: $('#category').val(),
             document_type_id: $('#document-type').val(),
-            person_id: $('#person').val(),
+            person_id: $('#entity').val(),
             document_date: $('#document-date').val(),
             payment_status: $('#payment-status').val(),
             status: $('#status').val(),
@@ -499,7 +503,34 @@ $(document).ready(function() {
                     
                     // Remover documento de la lista si ya no está pendiente
                     if (formData.status !== 'pending') {
-                        $(`.document-item[data-document-id="${currentDocumentId}"]`).fadeOut();
+                        const $currentItem = $(`.document-item[data-document-id="${currentDocumentId}"]`);
+                        
+                        // Buscar el siguiente documento antes de remover el actual
+                        let $nextItem = $currentItem.next('.document-item');
+                        if ($nextItem.length === 0) {
+                            // Si no hay siguiente, buscar el anterior
+                            $nextItem = $currentItem.prev('.document-item');
+                        }
+                        
+                        // Remover el documento actual
+                        $currentItem.fadeOut(300, function() {
+                            $(this).remove();
+                            
+                            // Actualizar contador
+                            const remaining = $('.document-item').length;
+                            $('.badge').first().text(remaining);
+                            
+                            // Si hay otro documento, seleccionarlo
+                            if ($nextItem.length > 0) {
+                                $nextItem.click();
+                            } else {
+                                // No hay más documentos, limpiar la vista
+                                $('#pdf-viewer').html('<div class="text-center p-5"><p>No hay más documentos pendientes</p></div>');
+                                $('#document-form')[0].reset();
+                                $('#structured-name').text('Ningún documento seleccionado');
+                                currentDocumentId = null;
+                            }
+                        });
                     }
                 } else {
                     DocTrac.showNotification(response.error, 'error');
@@ -564,6 +595,44 @@ $(document).ready(function() {
         `;
         $('#pdf-viewer-container').html(errorHtml);
     }
+    
+    // Manejar sincronización de WorkFolder
+    $('#syncWorkfolderBtn').on('click', function() {
+        const btn = $(this);
+        const originalHtml = btn.html();
+        
+        // Mostrar spinner
+        btn.html('<i class="fas fa-spinner fa-spin"></i>');
+        btn.prop('disabled', true);
+        
+        $.ajax({
+            url: '{% url "documents:admin_sync_workfolder" %}',
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    DocTrac.showNotification(
+                        `Sincronización exitosa: ${response.processed_count} documentos procesados`,
+                        'success'
+                    );
+                    // Recargar la página para mostrar los nuevos documentos
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    DocTrac.showNotification(response.error || 'Error en la sincronización', 'error');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error en sincronización:', error);
+                DocTrac.showNotification('Error al sincronizar la carpeta', 'error');
+            },
+            complete: function() {
+                btn.html(originalHtml);
+                btn.prop('disabled', false);
+            }
+        });
+    });
 
 });
 </script>

@@ -49,6 +49,12 @@
                             <i class="fas fa-plus me-1"></i>Nuevo Documento
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'administration_dashboard' %}active{% endif %}" 
+                           href="{% url 'documents:administration_dashboard' %}">
+                            <i class="fas fa-user-shield me-1"></i>Administración
+                        </a>
+                    </li>
                     {% if user.is_staff %}
                     <li class="nav-item">
                         <a class="nav-link" href="/admin/" target="_blank">

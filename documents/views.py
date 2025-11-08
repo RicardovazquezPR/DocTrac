@@ -15,6 +15,7 @@ import os
 import shutil
 from pathlib import Path
 from datetime import datetime
+from django.utils.timezone import now
 import logging
 
 # Configurar logger
@@ -25,17 +26,13 @@ def dashboard(request):
     """Vista principal del dashboard con interfaz de 3 columnas"""
     user = request.user
     
-    # Filtrar documentos según permisos del usuario
+    # Filtrar documentos pendientes (sin filtro de carpeta por ahora)
     if user.can_view_all_documents():
         pending_documents = Document.objects.filter(status='pending')
-        all_documents = Document.objects.all()
     else:
         pending_documents = Document.objects.filter(
             Q(assigned_users=user) | Q(created_by=user),
             status='pending'
-        ).distinct()
-        all_documents = Document.objects.filter(
-            Q(assigned_users=user) | Q(created_by=user)
         ).distinct()
     
     # Obtener categorías y tipos para los dropdowns
@@ -43,7 +40,6 @@ def dashboard(request):
     document_types = DocumentType.objects.filter(is_active=True)
     
     # Filtrar personas/departamentos según configuración
-    from django.conf import settings
     usage_type = getattr(settings, 'SYSTEM_USAGE_TYPE', 'personal')
     
     if usage_type == 'empresa':
@@ -61,7 +57,6 @@ def dashboard(request):
         'categories': categories,
         'document_types': document_types,
         'entities': entities,
-        'total_documents': all_documents.count(),
         'pending_count': pending_documents.count(),
         'usage_type': usage_type,
         'person_label': usage_config.get('person_label', 'Persona'),
@@ -101,6 +96,8 @@ def update_document(request, pk):
     user = request.user
     document = get_object_or_404(Document, pk=pk)
     
+    logger.info(f"=== Iniciando actualización de documento {pk} ===")
+    
     # Verificar permisos
     if not user.can_view_all_documents():
         if not (document.assigned_users.filter(id=user.id).exists() or document.created_by == user):
@@ -108,6 +105,7 @@ def update_document(request, pk):
     
     try:
         data = json.loads(request.body)
+        logger.info(f"Datos recibidos: {data}")
         
         # Guardar estado anterior para historial
         previous_status = document.status
@@ -125,7 +123,12 @@ def update_document(request, pk):
             document.entity_id = data['entity_id']
         
         if 'document_date' in data and data['document_date']:
-            document.document_date = data['document_date']
+            from datetime import datetime
+            # Convertir string a objeto date si es necesario
+            if isinstance(data['document_date'], str):
+                document.document_date = datetime.strptime(data['document_date'], '%Y-%m-%d').date()
+            else:
+                document.document_date = data['document_date']
         
         if 'payment_status' in data:
             document.payment_status = data['payment_status']
@@ -148,17 +151,83 @@ def update_document(request, pk):
                 change_reason=data.get('change_reason', 'Actualización desde dashboard')
             )
         
-        # Generar nombre estructurado de forma segura
+        # Renombrar y mover archivo basado en la categorización
+        import time
+        start_time = time.time()
         try:
-            structured_name = document.get_structured_name()
+            if document.file and document.entity and document.category and document.document_type and document.document_date:
+                logger.info(f"Iniciando movimiento de archivo para documento {document.id}")
+                
+                # Carpeta base para documentos organizados
+                organized_folder = Path(settings.MEDIA_ROOT) / 'Organized'
+                organized_folder.mkdir(parents=True, exist_ok=True)
+
+                # Crear estructura de carpetas usando los NOMBRES completos
+                entity_folder = organized_folder / document.entity.name
+                category_folder = entity_folder / document.category.name
+                type_folder = category_folder / document.document_type.name
+                type_folder.mkdir(parents=True, exist_ok=True)
+
+                # Generar nuevo nombre del archivo usando CÓDIGOS CORTOS:
+                # Entidad_Categoría_TipoDocumento_Fecha
+                entity_code = document.entity.value
+                category_code = document.category.value
+                doc_type_code = document.document_type.value
+                
+                # Convertir fecha a string de forma segura
+                if hasattr(document.document_date, 'strftime'):
+                    date_str = document.document_date.strftime('%Y%m%d')
+                else:
+                    # Si por alguna razón es string, intentar parsearlo
+                    from datetime import datetime
+                    date_str = datetime.strptime(str(document.document_date), '%Y-%m-%d').strftime('%Y%m%d')
+                
+                new_file_name = f"{entity_code}_{category_code}_{doc_type_code}_{date_str}.pdf"
+                new_file_path = type_folder / new_file_name
+
+                # Obtener la ruta actual del archivo
+                current_file_path = Path(settings.MEDIA_ROOT) / document.file.name
+                
+                logger.info(f"Archivo origen: {current_file_path}")
+                logger.info(f"Archivo destino: {new_file_path}")
+                
+                # Mover el archivo al nuevo destino (solo si existe)
+                if current_file_path.exists():
+                    logger.info(f"Moviendo archivo...")
+                    shutil.move(str(current_file_path), str(new_file_path))
+                    
+                    # Actualizar la ruta del archivo en el modelo con ruta relativa
+                    relative_path = new_file_path.relative_to(settings.MEDIA_ROOT)
+                    document.file.name = str(relative_path)
+                    document.save(update_fields=['file'])
+                    
+                    elapsed = time.time() - start_time
+                    logger.info(f"✓ Archivo movido y renombrado: {new_file_name} (tomó {elapsed:.2f}s)")
+                else:
+                    logger.warning(f"✗ Archivo no encontrado: {current_file_path}")
+            else:
+                logger.info(f"Documento {document.id} no tiene todos los campos necesarios para mover")
+        except Exception as e:
+            elapsed = time.time() - start_time
+            logger.error(f"✗ Error al mover y renombrar el archivo (después de {elapsed:.2f}s): {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return JsonResponse({'success': False, 'error': f'Error al mover y renombrar el archivo: {str(e)}'})
+        
+        # Generar nombres estructurados de forma segura
+        try:
+            structured_name = document.get_structured_name()  # Nombre con códigos
+            display_name = document.get_display_name()        # Nombre legible
         except Exception as name_error:
-            print(f"Error generando nombre estructurado: {name_error}")
+            print(f"Error generando nombres: {name_error}")
             structured_name = document.title
+            display_name = document.title
         
         return JsonResponse({
             'success': True,
             'message': 'Documento actualizado correctamente',
-            'structured_name': structured_name
+            'structured_name': structured_name,
+            'display_name': display_name
         })
         
     except Exception as e:
@@ -174,7 +243,7 @@ def get_document_types_by_category(request):
         document_types = DocumentType.objects.filter(
             category_id=category_id, 
             is_active=True
-        ).values('id', 'name')
+        ).values('id', 'name', 'value')
         return JsonResponse({'document_types': list(document_types)})
     
     return JsonResponse({'document_types': []})
@@ -262,15 +331,15 @@ class DocumentCreateView(LoginRequiredMixin, CreateView):
         processed_folder.mkdir(exist_ok=True)
 
         try:
-            # Crear carpeta 'pending' en Main
-            pending_folder = Path(settings.MAIN_FOLDER) / 'pending'
+            # Crear carpeta 'Pending' dentro de MEDIA_ROOT (Main)
+            pending_folder = Path(settings.MEDIA_ROOT) / 'Pending'
             pending_folder.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            logger.error(f"Error al crear la carpeta 'pending': {e}")
+            logger.error(f"Error al crear la carpeta 'Pending': {e}")
             raise
 
         # Generar nombre único basado en timestamp y nombre original
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = now().strftime('%Y%m%d_%H%M%S')
         original_name = document.file.name.split('/')[-1]  # Solo el nombre del archivo
         new_name = f"{timestamp}_{original_name}"
 
@@ -279,14 +348,16 @@ class DocumentCreateView(LoginRequiredMixin, CreateView):
         processed_path = processed_folder / original_name
         shutil.move(source_path, processed_path)
 
-        # Crear copia en 'pending'
+        # Crear copia en 'Pending'
         pending_path = pending_folder / new_name
         shutil.copy2(processed_path, pending_path)
 
-        # Actualizar campos del documento
+        # Actualizar el campo file del documento con la ruta relativa
+        relative_path = pending_path.relative_to(settings.MEDIA_ROOT)
+        document.file = str(relative_path)
         document.original_filename = original_name
         document.imported_from_folder = False  # False porque fue subido manualmente
-        document.save(update_fields=['original_filename', 'imported_from_folder'])
+        document.save(update_fields=['file', 'original_filename', 'imported_from_folder'])
 
 @login_required
 def get_document_data(request, pk):
